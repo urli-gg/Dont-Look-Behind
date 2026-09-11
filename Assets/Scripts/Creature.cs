@@ -26,24 +26,19 @@ public class Creature : MonoBehaviour
         cameraForward.y = 0;
         cameraForward.Normalize();
 
-        float dot = Vector3.Dot(
-       cameraForward,
-            directionToCreature
-        );
+        float dot = Vector3.Dot(cameraForward,directionToCreature);
 
         bool playerIsLooking = dot > lookThreshold;
 
         
         if (playerIsLooking)
         {
-            Vector3 directionAway =
-                transform.position - player.position;
+            Vector3 directionAway = transform.position - player.position;
 
             directionAway.y = 0;
             directionAway.Normalize();
 
-            transform.position +=
-                directionAway * retreatSpeed * Time.deltaTime;
+            transform.position += directionAway * retreatSpeed * Time.deltaTime;
 
             return;
         }
@@ -55,8 +50,7 @@ public class Creature : MonoBehaviour
         creaturePosition.y = 0;
         playerPosition.y = 0;
 
-        float distanceToPlayer =
-            Vector3.Distance(creaturePosition, playerPosition);
+        float distanceToPlayer = Vector3.Distance(creaturePosition, playerPosition);
 
         
         if (distanceToPlayer <= gameOverDistance)
@@ -69,10 +63,6 @@ public class Creature : MonoBehaviour
         Vector3 targetPosition = player.position;
         targetPosition.y = transform.position.y;
 
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            targetPosition,
-            speed * Time.deltaTime
-        );
+        transform.position = Vector3.MoveTowards(transform.position,targetPosition,speed * Time.deltaTime);
     }
 }
