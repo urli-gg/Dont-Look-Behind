@@ -252,6 +252,7 @@ MonoBehaviour:
   retreatSpeed: 1.5
   gameOverDistance: 1.2
   lookThreshold: 0.7
+  maxTurns: 3
 --- !u!114 &183672193
 MonoBehaviour:
   m_ObjectHideFlags: 0
