@@ -2065,6 +2065,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -23
       objectReference: {fileID: 0}
+    - target: {fileID: 7917674758246323947, guid: 77e7c27b2c5525e4aa8cc9f99d654486, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 3.5
+      objectReference: {fileID: 0}
     - target: {fileID: 8053059486601427065, guid: 77e7c27b2c5525e4aa8cc9f99d654486, type: 3}
       propertyPath: m_Enabled
       value: 1
@@ -2884,6 +2888,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: PASILLO.mtl
       objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: a1c35856a4799304b9c8b0d1f80cd6e9, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: a1c35856a4799304b9c8b0d1f80cd6e9, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1151388028547126963, guid: a1c35856a4799304b9c8b0d1f80cd6e9, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3086,6 +3102,18 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -3125,6 +3153,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -5247182325114921842, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 086d75eeefbd01f45a854dcd7ba789c7, type: 2}
     - target: {fileID: 919132149155446097, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
       propertyPath: m_Name
       value: shabannn
@@ -3137,6 +3169,22 @@ PrefabInstance:
       propertyPath: m_ApplyRootMotion
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8459741790398532941, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 086d75eeefbd01f45a854dcd7ba789c7, type: 2}
+    - target: {fileID: 8459741790398532941, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: 'm_Materials.Array.data[1]'
+      value: 
+      objectReference: {fileID: 2100000, guid: f0649dc9e1bbf4a4db50bb4297b46cf4, type: 2}
+    - target: {fileID: 8459741790398532941, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: 'm_Materials.Array.data[3]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 086d75eeefbd01f45a854dcd7ba789c7, type: 2}
+    - target: {fileID: 9178290891119682551, guid: 6bcd47b4f3d7dc34684f8dd23288a04d, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 3384633582e30774083d0b2f01aa5915, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3549,7 +3597,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 00efdd4c082439d4a9315dab0bb2a889, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.74
+      value: 2.37
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 00efdd4c082439d4a9315dab0bb2a889, type: 3}
       propertyPath: m_LocalPosition.z
