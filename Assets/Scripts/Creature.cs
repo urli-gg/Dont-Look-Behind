@@ -11,18 +11,21 @@ public class Creature : MonoBehaviour
     public float gameOverDistance = 1.2f;
     public float lookThreshold = 0.7f;
 
-    
 
-    
+
     public int maxTurns = 3;
 
-    
+
     private int turnsUsed = 0;
 
-    
+
     private bool wasLookingLastFrame = false;
 
-    
+
+    public float maxLookTime = 2f;
+
+    private float currentLookTime = 0f;
+
 
 
     void Update()
@@ -49,21 +52,36 @@ public class Creature : MonoBehaviour
         bool playerIsLooking = dot > lookThreshold;
 
 
-        
+
         if (playerIsLooking && !wasLookingLastFrame)
         {
             turnsUsed++;
 
-            Debug.Log("Giro número: " + turnsUsed);
+            currentLookTime = 0f;
+
+            Debug.Log("Giro nÃºmero: " + turnsUsed);
         }
 
-        
-        bool canRepelCreature = playerIsLooking && turnsUsed <= maxTurns;
 
-        
+        if (playerIsLooking && turnsUsed <= maxTurns)
+        {
+            currentLookTime += Time.deltaTime;
+        }
+        else if (!playerIsLooking)
+        {
+            currentLookTime = 0f;
+        }
+
+
+        bool canRepelCreature =
+            playerIsLooking &&
+            turnsUsed <= maxTurns &&
+            currentLookTime < maxLookTime;
+
+
         wasLookingLastFrame = playerIsLooking;
 
-        
+
 
 
         if (canRepelCreature)
