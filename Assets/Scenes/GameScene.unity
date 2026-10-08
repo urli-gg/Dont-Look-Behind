@@ -247,13 +247,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7898dc5e8facee4c8ba87034bb27512, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Creature
-  player: {fileID: 2075311128}
+  player: {fileID: 1252844447}
   playerCamera: {fileID: 1252844447}
   speed: 1.5
   retreatSpeed: 1.5
   gameOverDistance: 1.2
   lookThreshold: 0.7
   maxTurns: 3
+  maxLookTime: 3
 --- !u!1 &90774525
 GameObject:
   m_ObjectHideFlags: 0
@@ -4033,11 +4034,6 @@ MonoBehaviour:
   m_StartingInteractionStrengthFilters: []
   m_AutoFindParentInteractableInHierarchy: 0
   m_ParentInteractableObject: {fileID: 0}
---- !u!4 &2075311128 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 8806329115733545878, guid: 77e7c27b2c5525e4aa8cc9f99d654486, type: 3}
-  m_PrefabInstance: {fileID: 1373153106}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &2098106732
 PrefabInstance:
   m_ObjectHideFlags: 0
