@@ -5,6 +5,9 @@ public class DoorController : MonoBehaviour
     public float openHeight = 3f;
     public float openSpeed = 2f;
 
+    [Header("Zona de victoria")]
+    public GameObject winTrigger;
+
     private Vector3 closedPosition;
     private Vector3 openPosition;
 
@@ -16,6 +19,11 @@ public class DoorController : MonoBehaviour
 
         openPosition =
             closedPosition + Vector3.up * openHeight;
+
+        if (winTrigger != null)
+        {
+            winTrigger.SetActive(false);
+        }
     }
 
     void Update()
@@ -34,5 +42,10 @@ public class DoorController : MonoBehaviour
     public void OpenDoor()
     {
         opening = true;
+
+        if (winTrigger != null)
+        {
+            winTrigger.SetActive(true);
+        }
     }
 }
