@@ -25,13 +25,9 @@ public class GameCodeManager : MonoBehaviour
 
         for (int i = 0; i < codeLength; i++)
         {
-            int digit;
-
-            // Evitamos que la contraseña empiece con 0
-            if (i == 0)
-                digit = Random.Range(1, 10);
-            else
-                digit = Random.Range(0, 10);
+            // Genera únicamente números del 1 al 9.
+            // El 10 no se incluye en Random.Range con enteros.
+            int digit = Random.Range(1, 10);
 
             GeneratedCode += digit.ToString();
 
@@ -50,7 +46,7 @@ public class GameCodeManager : MonoBehaviour
             }
         }
 
-        // Solo para pruebas. Después podemos borrar esta línea.
+        // Para pruebas. Puedes borrar esta línea al final del proyecto.
         Debug.Log("Codigo generado: " + GeneratedCode);
     }
 }

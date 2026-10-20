@@ -250,7 +250,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Creature
   player: {fileID: 1252844447}
   playerCamera: {fileID: 1252844447}
-  speed: 1.5
+  speed: 1
   retreatSpeed: 1.5
   gameOverDistance: 1.2
   lookThreshold: 0.7
