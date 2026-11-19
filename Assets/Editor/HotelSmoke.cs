@@ -61,8 +61,9 @@ internal static class HotelSmoke
                 runtimeError ??= condition;
         }
         Application.logMessageReceived += Watch;
-        IEnumerator tests = Exercise();
-        while (true)
+        var tests = new Stack<IEnumerator>();
+        tests.Push(Exercise());
+        while (tests.Count > 0)
         {
             object result;
             try
@@ -71,9 +72,18 @@ internal static class HotelSmoke
                     throw failure;
                 if (runtimeError != null)
                     throw new InvalidOperationException($"Runtime error: {runtimeError}");
-                if (!tests.MoveNext())
-                    break;
-                result = tests.Current;
+                IEnumerator current = tests.Peek();
+                if (!current.MoveNext())
+                {
+                    tests.Pop();
+                    continue;
+                }
+                result = current.Current;
+                if (result is IEnumerator nested)
+                {
+                    tests.Push(nested);
+                    continue;
+                }
             }
             catch (Exception error)
             {
@@ -95,6 +105,13 @@ internal static class HotelSmoke
     {
         Time.timeScale = 3f;
         yield return null;
+        var director = Find<HorrorTensionDirector>();
+        Check(director != null && director.profiles.Length == 3, "Three difficulty profiles are bound to the saved scene.");
+        director.SetProfile(NightmareDifficulty.Nightmare);
+        Check(director.Profile.difficulty == NightmareDifficulty.Nightmare && director.lighting.fixtures.Count(fixture => fixture.ruined) >= 2,
+            "Nightmare has a cold lighting profile and at least two dead lamps.");
+        Check(RenderSettings.fog && RenderSettings.fogDensity >= 0.08f && RenderSettings.ambientLight.maxColorComponent < 0.24f,
+            "Nightmare has deep ambient falloff.");
         var elevator = Find<ElevatorSequence>();
         var manager = Find<GameCodeManager>();
         var keypad = Find<Keypad>();
@@ -136,6 +153,16 @@ internal static class HotelSmoke
         Capture("02-Pasillo", new Vector3(0f, 1.60f, -15.8f), Quaternion.Euler(-1f, 0f, 0f));
         Capture("03-Registro", new Vector3(-2.18f, 1.60f, -8.65f), Quaternion.Euler(8f, -90f, 0f));
         Capture("04-Salida", new Vector3(0.40f, 1.57f, 15.8f), Quaternion.Euler(2f, 12f, 0f));
+        var roomDoor = UnityEngine.Object.FindObjectsByType<HotelSwingDoor>(FindObjectsSortMode.None)
+            .Single(door => door.transform.position.x < 0f);
+        Vector3 outsideRoom = new(0f, .04f, -8.6f), insideRoom = new(-3.55f, .04f, -8.6f);
+        roomDoor.CloseFromFright(165f);
+        yield return Await(() => !PathExists(outsideRoom, insideRoom), 4f);
+        Check(Physics.Linecast(outsideRoom + Vector3.up, insideRoom + Vector3.up, creature.architecture),
+            "A supernatural door closure blocks both the creature's path and the physical doorway.");
+        roomDoor.Toggle();
+        yield return Await(() => PathExists(outsideRoom, insideRoom), 4f);
+        Check(true, "The supernatural door can be reopened.");
 
         var key = GameObject.Find("Service key").GetComponent<XRGrabInteractable>();
         probe.transform.position = key.transform.position;
@@ -244,7 +271,144 @@ internal static class HotelSmoke
         GameObject.Find("Reiniciar").GetComponent<HotelButton>().Press();
         yield return Await(() => SceneManager.GetActiveScene().name == "GameScene", 5f);
         Check(true, "GameOver restarts the elevator.");
+        yield return null;
+        yield return ExerciseNightmare();
         Time.timeScale = 1f;
+    }
+
+    private static IEnumerator ExerciseNightmare()
+    {
+        var director = Find<HorrorTensionDirector>();
+        var elevator = Find<ElevatorSequence>();
+        var player = Find<HotelDesktopControls>();
+        var keypad = Find<Keypad>();
+        var creature = Find<Creature>(true);
+        director.SetProfile(NightmareDifficulty.Nightmare);
+        Check(director.Profile.pursuitSpeed > director.profiles[0].pursuitSpeed &&
+            director.Profile.pursuitSpeed < director.profiles[2].pursuitSpeed &&
+            director.profiles.All(profile => profile.reaction < profile.gazeProtection), "Profiles order speed, rest, and the gaze window.");
+        Check(director.soundscape.roomTone.clip != null && director.soundscape.pursuitBed.clip != null, "Dynamic audio beds are serialized.");
+
+        GameObject.Find("Play").GetComponent<HotelButton>().Press();
+        yield return Await(() => elevator.DoorsOpen, 10f);
+        yield return Walk(player, director, new Vector3(0f, 0f, -13.48f));
+        Check(director.Active && creature.isActiveAndEnabled, "The creature activates before the first seal can be read on the center route.");
+
+        yield return ReadSeal(player, director, 0);
+        float firstPressure = director.Intensity;
+        yield return Walk(player, director, new Vector3(-.11f, 0f, -8.62f));
+        yield return Walk(player, director, new Vector3(-2.79f, 0f, -8.55f));
+        yield return ReadSeal(player, director, 1);
+        Check(director.RoomDwell > 0f && HorrorTensionDirector.InsideGuestRoom(player.view.transform.position),
+            "The walk enters room 104 and feeds the room-dwell input.");
+        yield return Walk(player, director, new Vector3(-.41f, 0f, -8.61f));
+        yield return Walk(player, director, new Vector3(.36f, 0f, 3.84f));
+        yield return Walk(player, director, new Vector3(2.93f, 0f, 3.94f));
+        yield return ReadSeal(player, director, 2);
+        yield return Await(() => director.State >= HorrorTensionDirector.Stage.Threat, 3.2f);
+        Check(director.Telemetry.Data.firstEncounter >= 0f && director.Clues == 3 && director.Intensity > firstPressure,
+            "An encounter occurs before the last seal and pressure rises as the puzzle advances.");
+        yield return Walk(player, director, new Vector3(.40f, 0f, 3.90f));
+        yield return Walk(player, director, new Vector3(.07f, 0f, 11.77f));
+        yield return ReadSeal(player, director, 3);
+        Check(director.ExitClimax && director.Telemetry.Data.clueIntervals.Count == 4, "The fourth seal starts the exit climax.");
+        if (!director.lighting.IsBlackout)
+            yield return Await(() => director.lighting.IsBlackout, 2f);
+        Check(director.puzzle.InstalledClues.All(digit => digit != null && digit.isActiveAndEnabled),
+            "All four digits stay rendered in the blackout.");
+        Capture("06-Pesadilla-Climax", new Vector3(.33f, 1.61f, 13.4f), Quaternion.identity);
+
+        yield return Walk(player, director, new Vector3(.72f, 0f, 16.23f));
+        for (int digitIndex = 0; digitIndex < director.puzzle.GeneratedCode.Length; digitIndex++)
+        {
+            yield return DefendAtKeypad(player, director);
+            player.view.transform.rotation = Quaternion.LookRotation(keypad.transform.position - player.view.transform.position);
+            Press(keypad, director.puzzle.GeneratedCode[digitIndex].ToString());
+            float ready = Time.realtimeSinceStartup + .17f;
+            yield return Await(() => Time.realtimeSinceStartup >= ready, 2f);
+        }
+        Press(keypad, "OK");
+        float openingUntil = Time.time + 4f;
+        while (!keypad.door.IsOpen)
+        {
+            CheckAlive(director);
+            if (Time.time >= openingUntil)
+                throw new TimeoutException("The shutter did not open on the Nightmare route.");
+            yield return DefendAtKeypad(player, director);
+            yield return null;
+        }
+        var telemetry = director.Telemetry;
+        yield return Walk(player, director, new Vector3(.10f, 0f, 18.78f));
+        yield return Await(() => SceneManager.GetActiveScene().name == "WinScene", 4f);
+
+        var report = telemetry.Data;
+        Check(report != null && report.outcome == "victory" && report.firstEncounter >= 0f &&
+            report.keypadSeconds > 0f && report.pursuits > 0 && report.timeline.Any(item => item.kind == "event"),
+            "The physical Nightmare route records a win, encounter, pursuit, keypad, and a staged event.");
+        Debug.Log($"NIGHTMARE BALANCE PASS · {report.duration:F1}s, first encounter {report.firstEncounter:F1}s, {report.pursuits} pursuits, {report.looksUsed} looks, keypad {report.keypadSeconds:F1}s, {report.clueIntervals.Count} clues.");
+    }
+
+    private static IEnumerator DefendAtKeypad(HotelDesktopControls player, HorrorTensionDirector director)
+    {
+        CheckAlive(director);
+        var creature = director.creature;
+        if (!creature.HasLineOfSightToPlayer || creature.TurnsRemaining == 0 ||
+            Vector3.Distance(creature.transform.position, player.transform.position) > 3.30f)
+            yield break;
+        float until = Time.time + 1.35f;
+        while (Time.time < until)
+        {
+            CheckAlive(director);
+            var eyes = creature.transform.position + Vector3.up * 1.39f;
+            player.view.transform.rotation = Quaternion.LookRotation(eyes - player.view.transform.position);
+            yield return null;
+        }
+    }
+
+    private static IEnumerator Walk(HotelDesktopControls player, HorrorTensionDirector director, Vector3 to)
+    {
+        float until = Time.time + 9f;
+        float movementTime = Time.time;
+        while (player != null)
+        {
+            Vector3 remaining = Vector3.ProjectOnPlane(to - player.transform.position, Vector3.up);
+            if (remaining.sqrMagnitude < .013f)
+                yield break;
+            if (Time.time >= until)
+                throw new TimeoutException($"Could not walk to {to} from {player.transform.position}.");
+            CheckAlive(director);
+            var creature = director.creature;
+            Vector3 facing = remaining.normalized;
+            if (creature.isActiveAndEnabled && creature.HasLineOfSightToPlayer && creature.TurnsRemaining > 0 &&
+                Vector3.Distance(creature.transform.position, player.transform.position) < 2.62f)
+                facing = (creature.transform.position + Vector3.up * 1.39f - player.view.transform.position).normalized;
+            player.view.transform.rotation = Quaternion.LookRotation(facing);
+            float now = Time.time;
+            float delta = Mathf.Clamp(now - movementTime, 0f, .10f);
+            movementTime = now;
+            player.body.Move(Vector3.ClampMagnitude(remaining, 2.25f * delta) + Vector3.down * delta);
+            yield return null;
+        }
+    }
+
+    private static IEnumerator ReadSeal(HotelDesktopControls player, HorrorTensionDirector director, int index)
+    {
+        Vector3 target = director.puzzle.numberSpawnPoints[index].position;
+        float deadline = Time.time + 1.9f;
+        while (!director.puzzle.HasFoundClue(index))
+        {
+            CheckAlive(director);
+            if (Time.time >= deadline)
+                throw new TimeoutException($"Seal {index + 1} could not be read from {player.transform.position}.");
+            player.view.transform.rotation = Quaternion.LookRotation(target - player.view.transform.position);
+            yield return null;
+        }
+    }
+
+    private static void CheckAlive(HorrorTensionDirector director)
+    {
+        if (director == null || director.creature.State == Creature.BehaviourState.Attacking)
+            throw new InvalidOperationException("Nightmare route was captured.");
     }
 
     private static IEnumerator Await(Func<bool> exit, float limit)
