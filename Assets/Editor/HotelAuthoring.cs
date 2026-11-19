@@ -101,6 +101,7 @@ internal sealed partial class HotelAuthoring
             material.SetTexture("_BaseMap", HotelMedia.Texture(texture, SurfaceFolder));
         if (emission != null)
         {
+            material.globalIlluminationFlags = MaterialGlobalIlluminationFlags.BakedEmissive;
             material.EnableKeyword("_EMISSION");
             material.SetColor("_EmissionColor", HotelMedia.Hex(emission) * strength);
         }
@@ -129,7 +130,9 @@ internal sealed partial class HotelAuthoring
             throw new InvalidOperationException($"GhostGirl material unavailable: {original}.");
         Material surface = SaveMaterial(name, source.shader);
         surface.CopyPropertiesFromMaterial(source);
-        surface.SetColor("_BaseColor", HotelMedia.Hex(tint));
+        Color color = HotelMedia.Hex(tint);
+        surface.SetColor("_BaseColor", color);
+        surface.SetColor("_Color", color);
         surface.SetFloat("_Smoothness", smoothness);
         surface.SetFloat("_Metallic", 0f);
         EditorUtility.SetDirty(surface);

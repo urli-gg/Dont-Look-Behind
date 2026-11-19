@@ -36,7 +36,9 @@ La prueba recorre las tres escenas de build y se ejecuta en Play Mode. Incluye s
 
 La ejecución en Unity `6000.3.19f1` pasó las comprobaciones. Se revisaron capturas de cabina, pasillo, habitación, salida y criatura. Unity Search emitió una excepción de indexación del Editor en modo batch durante el arranque. El verificador descarta ese caso de UnityEditor y falla ante las excepciones del juego.
 
-El comando de Windows genera un ejecutable x64 con Mono y restaura el backend del proyecto al terminar. El módulo IL2CPP de Windows no está instalado en el Editor disponible.
+El comando de Windows genera un ejecutable x64 con Mono y restaura el backend del proyecto al terminar. El Editor disponible carece del módulo IL2CPP de Windows. La compilación final terminó con cero avisos y se comprobó el arranque del ejecutable con Direct3D 11. Los registros locales están en `Logs/HotelSmoke.log`, `Logs/HotelBuild.log` y `Logs/HotelPlayer.log`.
+
+Los temporales de XR Simulation de la sesión anterior se archivaron localmente en `Logs/XRSimulationTempBackup` para evitar colisiones durante la exportación.
 
 ### Visor y rendimiento
 
