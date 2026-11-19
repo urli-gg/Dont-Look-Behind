@@ -5,10 +5,15 @@ public class HotelOptions : MonoBehaviour
 {
     public TMP_Text volumeLabel;
     public TMP_Text comfortLabel;
+    public TMP_Text difficultyLabel;
+    public HorrorTensionDirector tension;
 
     private static readonly float[] VolumeLevels = { 1f, 0.7f, 0.4f, 0f };
     private const string VolumeKey = "hotel.volume";
+    private const string DifficultyKey = "hotel.difficulty";
     private const string ComfortKey = "hotel.reducedScares";
+
+    public static NightmareDifficulty Difficulty => (NightmareDifficulty)Mathf.Clamp(PlayerPrefs.GetInt(DifficultyKey, (int)NightmareDifficulty.Nightmare), 0, 2);
 
     public static bool ReducedScares => PlayerPrefs.GetInt(ComfortKey, 0) == 1;
 
@@ -37,10 +42,21 @@ public class HotelOptions : MonoBehaviour
         Refresh();
     }
 
+    public void CycleDifficulty()
+    {
+        PlayerPrefs.SetInt(DifficultyKey, ((int)Difficulty + 1) % 3);
+        PlayerPrefs.Save();
+        if (tension != null)
+            tension.SetProfile(Difficulty);
+        Refresh();
+    }
+
     private void Refresh()
     {
         if (volumeLabel != null)
             volumeLabel.text = $"AUDIO  {AudioListener.volume:P0}";
+        if (difficultyLabel != null && tension != null)
+            difficultyLabel.text = tension.Profile.displayName;
         if (comfortLabel != null)
             comfortLabel.text = ReducedScares ? "SUSTOS  SUAVES" : "SUSTOS  NORMAL";
     }

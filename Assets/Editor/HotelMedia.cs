@@ -117,6 +117,8 @@ internal static class HotelMedia
                 float high = white - low;
                 float at = t / duration;
                 float envelope = Smooth(0f, 0.012f, t) * (1f - Smooth(0.87f, 1f, at));
+                if (name is "EmptyFloor" or "PursuitPulse")
+                    envelope = Smooth(0f, 0.075f, t) * (1f - Smooth(duration - 0.075f, duration, t));
                 float value = name switch
                 {
                     "Motor" => Sin(47f, t) * 0.23f + Sin(94f, t) * 0.11f * Sin(7f, t) + low * (0.15f + 0.14f * Sin(11f, t)),
@@ -132,6 +134,21 @@ internal static class HotelMedia
                     "Ceramic" or "CeramicAlternate" => (low * 0.72f + high * 0.22f + Sin(457f + seed * 7f, t) * 0.26f) * Mathf.Exp(-at * 7f),
                     "Attack" => (low * 0.48f + Sin(91f + 35f * at, t) * 0.24f + Sin(293f - 90f * at, t) * 0.19f + high * 0.16f) * (0.6f + 0.2f * Sin(28f, t)),
                     "Aftershock" => (slower * 0.73f + Sin(48f, t) * 0.30f) * Mathf.Exp(-at * 4f),
+                    "EmptyFloor" => Sin(44f, t) * 0.19f + Sin(59f, t) * 0.07f * Sin(0.33f, t) + slower * 0.52f,
+                    "PursuitPulse" => (Sin(67f, t) * 0.32f + low * 0.26f + Sin(119f, t) * 0.08f) *
+                        Mathf.Pow(Mathf.Max(0f, Sin(1.8f, t)), 2.8f),
+                    "WoodUnderfoot" => (low * 0.63f + Sin(118f - 34f * at, t) * 0.28f + high * 0.10f) * Mathf.Exp(-at * 6f),
+                    "DistantTread" => (low * 0.68f + Sin(78f, t) * 0.20f) * pulse(t, 0.53f),
+                    "WireFail" => (low * 0.41f + high * 0.065f + Sin(173f, t) * 0.18f) * pulse(t, 0.17f) * (1.0f - at),
+                    "HushLeft" => (low * 0.68f + high * 0.032f + slower * 0.40f) * Mathf.Pow(Mathf.Abs(Sin(1.6f, t)), 1.8f),
+                    "HingeSlam" => (low * 1.1f + Sin(106f - 32f * at, t) * 0.31f + Sin(278f, t) * 0.13f) * Mathf.Exp(-at * 4.6f),
+                    "SealTouch" => (Sin(293f, t) * 0.24f + Sin(297f, t) * 0.18f + low * 0.26f) * Mathf.Exp(-at * 4f),
+                    "LastSeal" => (Sin(78f, t) * 0.23f + Sin(124f, t) * 0.22f + slower * 0.42f) * (0.38f + 0.46f * at),
+                    "FinalRattle" => (Sin(112f, t) * 0.28f + Sin(408f, t) * 0.11f + low * 0.56f) * pulse(t, 0.41f),
+                    "PursuitBreath" => (low * 0.73f + slower * 0.52f + Sin(57f + 16f * at, t) * 0.16f) * Mathf.Sin(at * Mathf.PI),
+                    "CaptureImpact" => (Sin(84f - 27f * at, t) * 0.33f + Sin(207f - 31f * at, t) * 0.24f + low * 0.62f + high * 0.10f) *
+                        Mathf.Exp(-at * 2.2f),
+                    "KeypadRelay" => (Sin(199f, t) * 0.21f + high * 0.21f) * Mathf.Exp(-at * 6.7f),
                     _ => 0f
                 };
                 audio.Write((short)(Mathf.Clamp(value * envelope, -0.98f, 0.98f) * short.MaxValue));
@@ -147,6 +164,7 @@ internal static class HotelMedia
         return result;
     }
 
+    private static float pulse(float time, float period) => Mathf.Exp(-(time % period) * (7.8f / period));
     private static float Sin(float frequency, float time) => Mathf.Sin(frequency * time * (2f * Mathf.PI));
     private static float Hash(int x, int y) => (Mathf.Sin(x * 12.9898f + y * 78.233f) * 43758.5453f) % 1f * 0.5f + 0.5f;
     private static float Smooth(float a, float b, float value) => Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(a, b, value));

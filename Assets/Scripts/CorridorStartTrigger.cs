@@ -5,6 +5,7 @@ public class CorridorStartTrigger : MonoBehaviour
     public ElevatorSequence elevatorSequence;
     public Transform playerHead;
     public HorrorEventDirector horrorDirector;
+    public HorrorTensionDirector tension;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -20,6 +21,8 @@ public class CorridorStartTrigger : MonoBehaviour
         if (transform.InverseTransformPoint(playerHead.position).z < 0f)
             return;
 
+        if (tension != null)
+            tension.Begin();
         elevatorSequence.ActivateCreature();
         if (horrorDirector != null)
             horrorDirector.Begin();

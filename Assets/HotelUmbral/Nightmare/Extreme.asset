@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 104c8e8f09fc3a24bb0f250cc653703c, type: 3}
+  m_Name: Extreme
+  m_EditorClassIdentifier: Assembly-CSharp::NightmareProfile
+  difficulty: 2
+  displayName: TERROR EXTREMO
+  pursuitSpeed: 1.55
+  pressureSpeed: 0.55
+  burstSpeed: 0.52
+  burstSeconds: 2.1
+  burstRest: 5.7
+  grace: 1.15
+  recovery: 0.33
+  reaction: 0.21
+  gazeProtection: 2.2
+  eventGap: 6.2
+  lightScale: 0.78
+  audioScale: 0.92
+  roomPressureAfter: 3.9
+  progressPressure: 1.1
+  clueDwell: 0.52
+  clueHint: "REGISTRO DE EVACUACI\xD3N\nBusca los cuatro sellos.\nEl orden est\xE1
+    en las placas."
