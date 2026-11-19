@@ -1,116 +1,91 @@
-using UnityEngine;
-using TMPro;
 using System.Collections;
+using TMPro;
+using UnityEngine;
 
 public class Keypad : MonoBehaviour
 {
-    [Header("Pantalla")]
     public TMP_Text codeDisplay;
-
-    [Header("Configuracion")]
     public int maxDigits = 4;
-
-    [Header("Codigo del nivel")]
     public GameCodeManager gameCodeManager;
-
-    [Header("Puerta")]
     public DoorController door;
+    public AudioSource response;
+    public AudioClip rejected;
+    public AudioClip accepted;
 
-    private string currentCode = "";
-    private bool locked = false;
+    private static readonly Color Ready = new(0.59f, 0.93f, 0.78f);
+    private static readonly Color Rejected = new(1f, 0.46f, 0.42f);
+    private string input = "";
+    private bool locked;
+    public bool Accepted { get; private set; }
 
-    void Start()
-    {
-        UpdateDisplay();
-    }
+    private void Start() => Refresh();
 
     public void PressNumber(string number)
     {
-        if (locked)
+        if (locked || input.Length >= maxDigits || number == null || number.Length != 1 ||
+            number[0] < '0' || number[0] > '9')
             return;
-
-        if (currentCode.Length >= maxDigits)
-            return;
-
-        currentCode += number;
-
-        UpdateDisplay();
+        input += number;
+        Refresh();
     }
 
     public void DeleteNumber()
     {
-        if (locked)
+        if (locked || input.Length == 0)
             return;
-
-        if (currentCode.Length == 0)
-            return;
-
-        currentCode = currentCode.Substring(
-            0,
-            currentCode.Length - 1
-        );
-
-        UpdateDisplay();
+        input = input.Substring(0, input.Length - 1);
+        Refresh();
     }
 
     public void ClearCode()
     {
         if (locked)
             return;
-
-        currentCode = "";
-
-        UpdateDisplay();
+        input = "";
+        Refresh();
     }
 
     public void SubmitCode()
     {
-        if (locked)
+        if (locked || door == null || gameCodeManager == null || string.IsNullOrEmpty(gameCodeManager.GeneratedCode))
             return;
-
-        if (currentCode == gameCodeManager.GeneratedCode)
+        if (input.Length == maxDigits && input == gameCodeManager.GeneratedCode)
         {
-            CorrectCode();
+            Accepted = locked = true;
+            SetDisplay("ABIERTO", Ready);
+            Play(accepted);
+            door.OpenDoor();
         }
         else
         {
-            StartCoroutine(WrongCode());
+            StartCoroutine(Reject());
         }
     }
 
-    void CorrectCode()
+    private IEnumerator Reject()
     {
         locked = true;
-
-        codeDisplay.text = "OPEN";
-
-        door.OpenDoor();
-    }
-
-    IEnumerator WrongCode()
-    {
-        locked = true;
-
-        codeDisplay.text = "ERROR";
-
-        yield return new WaitForSeconds(1.5f);
-
-        currentCode = "";
-
+        SetDisplay("DENEGADO", Rejected);
+        Play(rejected);
+        yield return new WaitForSeconds(1.1f);
+        input = "";
         locked = false;
-
-        UpdateDisplay();
+        Refresh();
     }
 
-    void UpdateDisplay()
+    private void Play(AudioClip clip)
     {
-        if (currentCode.Length == 0)
-        {
-            codeDisplay.text = "----";
-        }
-        else
-        {
-            codeDisplay.text = currentCode;
-        }
+        if (response != null && clip != null)
+            response.PlayOneShot(clip);
+    }
+
+    private void Refresh() => SetDisplay(input.PadRight(maxDigits, '·'), Ready);
+
+    private void SetDisplay(string text, Color color)
+    {
+        if (codeDisplay == null)
+            return;
+        codeDisplay.text = text;
+        codeDisplay.color = color;
     }
 }

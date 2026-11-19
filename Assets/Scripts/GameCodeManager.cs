@@ -1,52 +1,38 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 
 public class GameCodeManager : MonoBehaviour
 {
-    [Header("Configuracion del codigo")]
-    public int codeLength = 4;
-
-    [Header("Prefab del numero")]
+    [Min(1)] public int codeLength = 4;
     public GameObject bloodNumberPrefab;
-
-    [Header("Lugares donde apareceran")]
     public Transform[] numberSpawnPoints;
 
     public string GeneratedCode { get; private set; }
+    public TMP_Text[] InstalledClues { get; private set; }
 
-    void Start()
+    private void Start()
     {
-        GenerateCode();
-    }
-
-    void GenerateCode()
-    {
-        GeneratedCode = "";
-
-        for (int i = 0; i < codeLength; i++)
+        if (numberSpawnPoints == null || codeLength < 1 || numberSpawnPoints.Length != codeLength ||
+            bloodNumberPrefab == null || bloodNumberPrefab.GetComponentInChildren<TMP_Text>(true) == null ||
+            System.Array.Exists(numberSpawnPoints, point => point == null))
         {
-            // Genera únicamente números del 1 al 9.
-            // El 10 no se incluye en Random.Range con enteros.
-            int digit = Random.Range(1, 10);
-
-            GeneratedCode += digit.ToString();
-
-            GameObject numberObject = Instantiate(
-                bloodNumberPrefab,
-                numberSpawnPoints[i].position,
-                numberSpawnPoints[i].rotation
-            );
-
-            TMP_Text numberText =
-                numberObject.GetComponentInChildren<TMP_Text>();
-
-            if (numberText != null)
-            {
-                numberText.text = digit.ToString();
-            }
+            Debug.LogError("El cÃ³digo requiere un prefab de texto y un anclaje por cada posiciÃ³n.", this);
+            return;
         }
 
-        // Para pruebas. Puedes borrar esta línea al final del proyecto.
-        Debug.Log("Codigo generado: " + GeneratedCode);
+        var digits = new char[codeLength];
+        InstalledClues = new TMP_Text[codeLength];
+        for (int index = 0; index < codeLength; index++)
+        {
+            digits[index] = (char)('0' + Random.Range(1, 10));
+            Transform point = numberSpawnPoints[index];
+            GameObject clue = Instantiate(bloodNumberPrefab, point, false);
+            clue.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+            TMP_Text text = clue.GetComponentInChildren<TMP_Text>(true);
+            text.text = digits[index].ToString();
+            InstalledClues[index] = text;
+        }
+
+        GeneratedCode = new string(digits);
     }
 }
