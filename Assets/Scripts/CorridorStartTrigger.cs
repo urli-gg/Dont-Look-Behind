@@ -1,23 +1,28 @@
-
 using UnityEngine;
 
 public class CorridorStartTrigger : MonoBehaviour
 {
     public ElevatorSequence elevatorSequence;
-
-    private bool activated;
+    public Transform playerHead;
+    public HorrorEventDirector horrorDirector;
 
     private void OnTriggerEnter(Collider other)
     {
-        if (activated || elevatorSequence == null)
+        if (playerHead == null && other.transform.root.CompareTag("Player") && elevatorSequence != null)
+            elevatorSequence.ActivateCreature();
+    }
+
+    private void Update()
+    {
+        // Also catches teleportation and room-scale steps that skip a narrow trigger.
+        if (elevatorSequence == null || !elevatorSequence.DoorsOpen || playerHead == null)
+            return;
+        if (transform.InverseTransformPoint(playerHead.position).z < 0f)
             return;
 
-        // Detecta el XR Origin etiquetado como Player.
-        if (other.transform.root.CompareTag("Player"))
-        {
-            activated = true;
-            elevatorSequence.ActivateCreature();
-        }
+        elevatorSequence.ActivateCreature();
+        if (horrorDirector != null)
+            horrorDirector.Begin();
+        enabled = false;
     }
 }
-

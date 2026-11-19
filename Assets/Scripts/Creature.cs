@@ -1,235 +1,243 @@
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
 public class Creature : MonoBehaviour
 {
-    [Header("Referencias")]
+    public enum BehaviourState { Waiting, Stalking, Pursuing, Retreating, Investigating, Approaching, Attacking, Recovering, Disarmed }
+
     public Transform player;
     public Transform playerCamera;
-
-    [Header("Movimiento")]
-    public float speed = 1.5f;
-    public float retreatSpeed = 3f;
-    public float gameOverDistance = 1.2f;
-
-    [Header("Deteccion de mirada")]
-    [Range(-1f, 1f)]
-    public float lookThreshold = 0.7f;
-
-    [Header("Limites para mirar a la criatura")]
-    public int maxTurns = 3;
-    public float maxLookTime = 3f;
-
-    [Header("Audio")]
+    public LayerMask architecture;
+    public NavMeshAgent agent;
+    public CreatureAttackSequence capture;
+    public Transform visual;
+    public Animator animationBody;
     public AudioSource footstepAudio;
+    public AudioSource breathAudio;
 
+    [Min(0.1f)] public float speed = 1.05f;
+    [Min(0.1f)] public float retreatSpeed = 2.3f;
+    [Min(0.1f)] public float gameOverDistance = 0.86f;
+    [Range(0f, 1f)] public float lookThreshold = 0.74f;
+    [Min(1)] public int maxTurns = 3;
+    [Min(0.1f)] public float maxLookTime = 3f;
+    [Min(0f)] public float initialGrace = 3.5f;
 
-    // Cuantas veces el jugador ya volteo a mirar
-    private int turnsUsed = 0;
+    public BehaviourState State { get; private set; }
+    public int TurnsRemaining { get; private set; }
+    public bool Repelling => State == BehaviourState.Retreating;
 
-    // Sirve para detectar el momento exacto
-    // en que el jugador empieza a mirar
-    private bool wasLookingLastFrame = false;
+    private NavMeshPath retreatPath;
+    private float graceUntil;
+    private float repelUntil;
+    private float lookSince = -1f;
+    private float awaySince = -1f;
+    private bool gazeLatched;
+    private float nextNavigation;
+    private float recoverUntil;
+    private float investigateUntil;
+    private float nextNoise;
+    private float nextStep;
+    private Vector3 investigation;
+    private Quaternion visualRest;
 
-    // Tiempo que lleva mirando durante el giro actual
-    private float currentLookTime = 0f;
+    private void Awake() => retreatPath = new NavMeshPath();
 
-    // Evita intentar cargar GameOver varias veces
-    private bool gameOverTriggered = false;
-
-
-    void Start()
+    private void OnEnable()
     {
-        // Comprobamos referencias importantes
-        if (player == null || playerCamera == null)
-        {
-            Debug.LogError("Creature: falta asignar Player o Player Camera en el Inspector.");
-
-            enabled = false;
-            return;
-        }
-
-        // Comienzan los pasos de la criatura
-        if (footstepAudio != null && !footstepAudio.isPlaying)
-        {
-            footstepAudio.Play();
-        }
+        TurnsRemaining = maxTurns;
+        State = BehaviourState.Waiting;
+        graceUntil = Time.time + initialGrace;
+        if (visual != null)
+            visualRest = visual.localRotation;
+        HotelNoise.Heard += OnNoise;
     }
 
+    private void OnDisable() => HotelNoise.Heard -= OnNoise;
 
-    void Update()
+    private void Update()
     {
-        if (gameOverTriggered)
+        if (player == null || playerCamera == null || State is BehaviourState.Attacking or BehaviourState.Disarmed)
+            return;
+        if (Time.time < graceUntil)
             return;
 
+        Vector3 target = playerCamera.position;
+        Vector3 groundTarget = new(target.x, transform.position.y, target.z);
+        Vector3 toPlayer = groundTarget - transform.position;
+        Vector3 eyes = transform.position + Vector3.up * 1.39f;
+        bool visible = !Physics.Linecast(playerCamera.position, eyes, architecture, QueryTriggerInteraction.Ignore);
+        bool looking = visible && Vector3.Dot(playerCamera.forward, (eyes - target).normalized) >= (gazeLatched ? lookThreshold - 0.07f : lookThreshold);
+        UpdateGaze(looking);
 
-        // -------------------------------------------------
-        // 1. DETECTAR SI EL JUGADOR MIRA A LA CRIATURA
-        // -------------------------------------------------
-
-        Vector3 directionToCreature = transform.position - playerCamera.position;
-
-        // Solo nos interesa la rotacion horizontal
-        directionToCreature.y = 0f;
-
-        if (directionToCreature.sqrMagnitude > 0.001f)
+        if (looking && repelUntil > Time.time)
         {
-            directionToCreature.Normalize();
+            Drive(BehaviourState.Retreating, RetreatTarget(-toPlayer.normalized), retreatSpeed);
+            recoverUntil = Time.time + 0.7f;
         }
-
-
-        Vector3 cameraForward = playerCamera.forward;
-
-        cameraForward.y = 0f;
-
-        if (cameraForward.sqrMagnitude > 0.001f)
+        else if (Time.time < recoverUntil)
         {
-            cameraForward.Normalize();
+            Drive(BehaviourState.Recovering, transform.position, speed);
         }
-
-
-        float dot = Vector3.Dot(cameraForward, directionToCreature);
-
-
-        bool playerIsLooking = dot > lookThreshold;
-
-
-        // -------------------------------------------------
-        // 2. CONTAR CADA VEZ QUE EL JUGADOR VOLTEA
-        // -------------------------------------------------
-
-        // Solo cuenta una vez cuando empieza a mirar.
-        // No cuenta cada frame.
-        if (playerIsLooking && !wasLookingLastFrame)
+        else if (visible && toPlayer.sqrMagnitude <= gameOverDistance * gameOverDistance &&
+                 !Physics.Linecast(playerCamera.position, transform.position + Vector3.up * 0.92f, architecture))
         {
-            turnsUsed++;
-
-            // Nueva mirada = nuevo temporizador
-            currentLookTime = 0f;
-
-            Debug.Log("Giro numero: " + turnsUsed + " / " + maxTurns);
+            Attack();
         }
-
-
-        // -------------------------------------------------
-        // 3. CONTROLAR CUANTO TIEMPO PUEDE MIRAR
-        // -------------------------------------------------
-
-        bool hasTurnAvailable = turnsUsed <= maxTurns;
-
-
-        // Si está mirando y todavía tiene oportunidades,
-        // aumenta el tiempo de mirada.
-        if (playerIsLooking && hasTurnAvailable)
+        else if (Time.time < investigateUntil && toPlayer.sqrMagnitude > 4f)
         {
-            currentLookTime += Time.deltaTime;
+            Drive(BehaviourState.Investigating, investigation, speed * 0.83f);
         }
-
-        // Cuando deja de mirar se prepara el temporizador
-        // para el siguiente giro.
-        if (!playerIsLooking)
+        else if (toPlayer.sqrMagnitude < 5.76f && visible)
         {
-            currentLookTime = 0f;
+            Drive(BehaviourState.Approaching, groundTarget, speed * 0.92f);
         }
-
-
-        // Solo puede ahuyentar a la criatura si:
-        //
-        // 1. La esta mirando.
-        // 2. Todavia tiene giros disponibles.
-        // 3. No agotó los segundos de esta mirada.
-        bool canRepelCreature = playerIsLooking && hasTurnAvailable && currentLookTime < maxLookTime;
-
-
-        wasLookingLastFrame = playerIsLooking;
-
-
-        // -------------------------------------------------
-        // 4. AHUYENTAR A LA CRIATURA
-        // -------------------------------------------------
-
-        if (canRepelCreature)
+        else
         {
-            // Mientras retrocede, detenemos los pasos
-            if (footstepAudio != null && footstepAudio.isPlaying)
+            float variation = 1f + 0.10f * Mathf.Sin(Time.time * 0.68f);
+            Drive(visible ? BehaviourState.Pursuing : BehaviourState.Stalking, groundTarget, speed * variation);
+        }
+        Animate(toPlayer);
+    }
+
+    private void UpdateGaze(bool looking)
+    {
+        if (!looking)
+        {
+            lookSince = -1f;
+            if (awaySince < 0f)
+                awaySince = Time.time;
+            if (Time.time - awaySince > 0.22f)
             {
-                footstepAudio.Pause();
+                gazeLatched = false;
+                repelUntil = 0f;
             }
-
-
-            Vector3 directionAway = transform.position - player.position;
-
-            directionAway.y = 0f;
-
-
-            if (directionAway.sqrMagnitude > 0.001f)
-            {
-                directionAway.Normalize();
-            }
-
-
-            transform.position += directionAway * retreatSpeed * Time.deltaTime;
-
             return;
         }
 
+        awaySince = -1f;
+        if (gazeLatched || TurnsRemaining <= 0)
+            return;
+        if (lookSince < 0f)
+            lookSince = Time.time;
+        if (Time.time - lookSince < 0.13f)
+            return;
+        gazeLatched = true;
+        TurnsRemaining--;
+        repelUntil = Time.time + maxLookTime;
+    }
 
-        // -------------------------------------------------
-        // 5. SI YA NO PUEDE AHUYENTARLA, VUELVE A PERSEGUIR
-        // -------------------------------------------------
-
-        // IMPORTANTE:
-        // Incluso si el jugador SIGUE mirando,
-        // cuando se terminan maxLookTime segundos
-        // llegamos aquí y la criatura vuelve a perseguirlo.
-
-        if (footstepAudio != null && !footstepAudio.isPlaying)
+    private Vector3 RetreatTarget(Vector3 away)
+    {
+        if (agent == null)
+            return transform.position + away * 3f;
+        if (State == BehaviourState.Retreating && Time.time < nextNavigation)
+            return transform.position;
+        Vector3 best = transform.position;
+        float bestDistance = 0f;
+        foreach (float angle in RetreatAngles)
         {
-            footstepAudio.UnPause();
+            Vector3 sample = transform.position + Quaternion.Euler(0f, angle, 0f) * away * 3f;
+            if (!NavMesh.SamplePosition(sample, out var hit, 1.6f, NavMesh.AllAreas))
+                continue;
+            float distance = Vector3.Dot(hit.position - transform.position, away);
+            if (distance <= bestDistance || !NavMesh.CalculatePath(transform.position, hit.position, NavMesh.AllAreas, retreatPath) ||
+                retreatPath.status != NavMeshPathStatus.PathComplete)
+                continue;
+            best = hit.position;
+            bestDistance = distance;
+        }
+        return best;
+    }
+
+    private static readonly float[] RetreatAngles = { 0f, 55f, -55f, 95f, -95f };
+
+    private void Drive(BehaviourState next, Vector3 destination, float moveSpeed)
+    {
+        bool changed = State != next;
+        State = next;
+        if (agent == null)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, destination, moveSpeed * Time.deltaTime);
+            return;
+        }
+        if (!agent.isOnNavMesh)
+            return;
+
+        agent.speed = moveSpeed;
+        if (!changed && Time.time < nextNavigation)
+            return;
+        nextNavigation = Time.time + 0.25f;
+        agent.isStopped = (destination - transform.position).sqrMagnitude < 0.08f;
+        if (!agent.isStopped && NavMesh.SamplePosition(destination, out var hit, 1.75f, NavMesh.AllAreas))
+            agent.SetDestination(hit.position);
+    }
+
+    private void Animate(Vector3 toPlayer)
+    {
+        bool moving = agent != null && agent.isOnNavMesh && agent.velocity.sqrMagnitude > 0.07f;
+        Vector3 facing = moving && !Repelling ? agent.velocity : toPlayer;
+        facing.y = 0f;
+        if (facing.sqrMagnitude > 0.02f)
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(facing), 190f * Time.deltaTime);
+        if (visual != null)
+            visual.localRotation = visualRest * Quaternion.Euler(0f, 0f, moving ? Mathf.Sin(Time.time * 8f) * 3.2f : Mathf.Sin(Time.time * 2f) * 1.4f);
+        if (animationBody != null)
+            animationBody.speed = moving ? 0.85f : 0.43f;
+
+        if (moving && !Repelling && footstepAudio != null && Time.time >= nextStep)
+        {
+            nextStep = Time.time + Random.Range(0.44f, 0.62f);
+            footstepAudio.pitch = Random.Range(0.87f, 1.1f);
+            footstepAudio.Play();
         }
 
+        if (breathAudio != null && !breathAudio.isPlaying)
+            breathAudio.Play();
+        if (breathAudio != null)
+            breathAudio.volume = Mathf.Lerp(0.75f, 0.1f, Mathf.InverseLerp(1f, 7f, toPlayer.magnitude));
+    }
 
-        // -------------------------------------------------
-        // 6. CALCULAR DISTANCIA AL JUGADOR
-        // -------------------------------------------------
+    private void OnNoise(Vector3 location, float radius)
+    {
+        if (Time.time < nextNoise || State is BehaviourState.Waiting or BehaviourState.Attacking or BehaviourState.Disarmed ||
+            (transform.position - location).sqrMagnitude > radius * radius)
+            return;
+        nextNoise = Time.time + 5.5f;
+        investigateUntil = Time.time + 2.45f;
+        investigation = location;
+    }
 
-        Vector3 creaturePosition = transform.position;
-
-        Vector3 playerPosition = player.position;
-
-
-        creaturePosition.y = 0f;
-        playerPosition.y = 0f;
-
-
-        float distanceToPlayer = Vector3.Distance(creaturePosition, playerPosition);
-
-
-        // -------------------------------------------------
-        // 7. GAME OVER
-        // -------------------------------------------------
-
-        if (distanceToPlayer <= gameOverDistance)
+    private void StopMovement()
+    {
+        if (agent != null && agent.isOnNavMesh)
         {
-            gameOverTriggered = true;
+            agent.isStopped = true;
+            agent.ResetPath();
+        }
+        if (footstepAudio != null)
+            footstepAudio.Stop();
+        if (breathAudio != null)
+            breathAudio.Stop();
+    }
 
+    private void Attack()
+    {
+        State = BehaviourState.Attacking;
+        StopMovement();
+        if (capture != null)
+            capture.Play(visual, animationBody, playerCamera);
+        else
             SceneManager.LoadScene("GameOver");
+    }
 
-            return;
-        }
-
-
-        // -------------------------------------------------
-        // 8. PERSEGUIR AL JUGADOR
-        // -------------------------------------------------
-
-        Vector3 targetPosition = player.position;
-
-        // La criatura no intenta subir a la altura
-        // de la cabeza del jugador.
-        targetPosition.y = transform.position.y;
-
-
-        transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
+    public bool TryDisarm()
+    {
+        if (State == BehaviourState.Attacking)
+            return false;
+        State = BehaviourState.Disarmed;
+        StopMovement();
+        return true;
     }
 }

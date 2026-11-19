@@ -4,48 +4,42 @@ public class DoorController : MonoBehaviour
 {
     public float openHeight = 3f;
     public float openSpeed = 2f;
-
-    [Header("Zona de victoria")]
     public GameObject winTrigger;
+    public AudioSource motor;
 
-    private Vector3 closedPosition;
     private Vector3 openPosition;
+    private bool opening;
+    public bool IsOpen { get; private set; }
 
-    private bool opening = false;
-
-    void Start()
+    private void Awake()
     {
-        closedPosition = transform.localPosition;
-
-        openPosition =
-            closedPosition + Vector3.up * openHeight;
-
+        openPosition = transform.localPosition + Vector3.up * openHeight;
         if (winTrigger != null)
-        {
             winTrigger.SetActive(false);
-        }
     }
 
-    void Update()
+    private void Update()
     {
-        if (opening)
-        {
-            transform.localPosition =
-                Vector3.MoveTowards(
-                    transform.localPosition,
-                    openPosition,
-                    openSpeed * Time.deltaTime
-                );
-        }
+        if (!opening)
+            return;
+        transform.localPosition = Vector3.MoveTowards(transform.localPosition, openPosition, openSpeed * Time.deltaTime);
+        if (transform.localPosition != openPosition)
+            return;
+
+        opening = false;
+        IsOpen = true;
+        if (motor != null)
+            motor.Stop();
+        if (winTrigger != null)
+            winTrigger.SetActive(true);
     }
 
     public void OpenDoor()
     {
+        if (opening || IsOpen)
+            return;
         opening = true;
-
-        if (winTrigger != null)
-        {
-            winTrigger.SetActive(true);
-        }
+        if (motor != null)
+            motor.Play();
     }
 }
