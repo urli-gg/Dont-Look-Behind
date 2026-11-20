@@ -16,7 +16,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Gravity;
 
 [InitializeOnLoad]
-internal static class HotelSmoke
+internal static partial class HotelSmoke
 {
     private const string Enabled = "HotelSmoke.enabled";
     private const string Baseline = "Assets/Scenes/GameScene.unity";
@@ -42,6 +42,7 @@ internal static class HotelSmoke
             foreach (var item in root.GetComponentsInChildren<Transform>(true))
                 if (GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(item.gameObject) != 0)
                     errors.Add($"{scene.path}: {item.name}");
+            CheckXrScene();
         }
         if (errors.Count != 0)
             throw new InvalidOperationException("Missing scripts: " + string.Join(", ", errors));
@@ -63,6 +64,7 @@ internal static class HotelSmoke
         Application.logMessageReceived += Watch;
         var tests = new Stack<IEnumerator>();
         tests.Push(Exercise());
+        tests.Push(ExerciseXr());
         while (tests.Count > 0)
         {
             object result;

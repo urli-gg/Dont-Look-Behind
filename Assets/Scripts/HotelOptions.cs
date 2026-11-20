@@ -7,15 +7,19 @@ public class HotelOptions : MonoBehaviour
     public TMP_Text comfortLabel;
     public TMP_Text difficultyLabel;
     public HorrorTensionDirector tension;
+    public TMP_Text turnLabel;
+    public HotelXrSession xrSession;
 
     private static readonly float[] VolumeLevels = { 1f, 0.7f, 0.4f, 0f };
     private const string VolumeKey = "hotel.volume";
     private const string DifficultyKey = "hotel.difficulty";
     private const string ComfortKey = "hotel.reducedScares";
+    private const string TurnKey = "hotel.smoothTurn";
 
     public static NightmareDifficulty Difficulty => (NightmareDifficulty)Mathf.Clamp(PlayerPrefs.GetInt(DifficultyKey, (int)NightmareDifficulty.Nightmare), 0, 2);
 
     public static bool ReducedScares => PlayerPrefs.GetInt(ComfortKey, 0) == 1;
+    public static bool SmoothTurn => PlayerPrefs.GetInt(TurnKey, 0) == 1;
 
     [RuntimeInitializeOnLoadMethod]
     private static void ApplyVolume()
@@ -51,6 +55,15 @@ public class HotelOptions : MonoBehaviour
         Refresh();
     }
 
+    public void ToggleTurn()
+    {
+        bool smooth = !SmoothTurn;
+        PlayerPrefs.SetInt(TurnKey, smooth ? 1 : 0);
+        PlayerPrefs.Save();
+        xrSession.ApplyTurnMode(smooth);
+        Refresh();
+    }
+
     private void Refresh()
     {
         if (volumeLabel != null)
@@ -59,5 +72,7 @@ public class HotelOptions : MonoBehaviour
             difficultyLabel.text = tension.Profile.displayName;
         if (comfortLabel != null)
             comfortLabel.text = ReducedScares ? "SUSTOS  SUAVES" : "SUSTOS  NORMAL";
+        if (turnLabel != null)
+            turnLabel.text = SmoothTurn ? "GIRO  SUAVE" : "GIRO  POR PASOS";
     }
 }

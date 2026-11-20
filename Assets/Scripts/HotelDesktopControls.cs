@@ -1,44 +1,31 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.XR;
 
 public class HotelDesktopControls : MonoBehaviour
 {
     public Camera view;
     public CharacterController body;
-    public Behaviour[] xrComponents;
     public float walkSpeed = 2.25f;
 
-    private XRDisplaySubsystem display;
-    private bool desktop;
     private float pitch;
     private HotelCarryable held;
 
-    private void Start()
+    private void OnEnable()
     {
-        var displays = new System.Collections.Generic.List<XRDisplaySubsystem>();
-        SubsystemManager.GetSubsystems(displays);
-        display = displays.Count > 0 ? displays[0] : null;
-        desktop = display == null || !display.running;
-        if (!desktop)
-            return;
-
-        foreach (var provider in xrComponents)
-            provider.enabled = false;
-
         body.enabled = true;
         body.height = 1.65f;
         body.radius = 0.23f;
         body.center = Vector3.up * 0.83f;
         body.minMoveDistance = 0f;
-        view.transform.localPosition = Vector3.up * (1.62f - view.transform.parent.localPosition.y);
+        pitch = 0f;
+        view.transform.localPosition = Vector3.zero;
         view.transform.localRotation = Quaternion.identity;
         Cursor.lockState = CursorLockMode.Locked;
     }
 
     private void Update()
     {
-        if (!desktop || Keyboard.current == null || Mouse.current == null)
+        if (Keyboard.current == null || Mouse.current == null)
             return;
         var keys = Keyboard.current;
         var mouse = Mouse.current;
@@ -84,13 +71,15 @@ public class HotelDesktopControls : MonoBehaviour
 
     private void OnGUI()
     {
-        if (desktop && !Application.isBatchMode && Cursor.lockState == CursorLockMode.Locked)
+        if (!Application.isBatchMode && Cursor.lockState == CursorLockMode.Locked)
             GUI.Label(new Rect(Screen.width / 2f - 4f, Screen.height / 2f - 9f, 12f, 18f), "·");
     }
 
-    private void OnDestroy()
+    private void OnDisable()
     {
-        if (desktop)
-            Cursor.lockState = CursorLockMode.None;
+        if (held != null)
+            held.DesktopRelease(Vector3.zero);
+        held = null;
+        Cursor.lockState = CursorLockMode.None;
     }
 }

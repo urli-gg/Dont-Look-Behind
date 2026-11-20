@@ -59,4 +59,24 @@ New-Item -ItemType Directory -Path Logs -Force | Out-Null
 
 La compilación Windows x64 con Mono terminó con cero avisos y se comprobó que el ejecutable arranca con Direct3D 11. Los registros de esta máquina están en `Logs/NightmareSmoke.log`, `Logs/NightmareBuild.log` y `Logs/NightmarePlayer.log`.
 
-La máquina de validación usa una RTX 3060 y carece de un runtime OpenXR activo. Las pruebas de visor físico, mezcla binaural, comodidad, tiempos de GPU y Android quedan pendientes. El sistema bloqueó una DLL de Burst JIT generada en este directorio, por lo que se usó el parámetro de batch para deshabilitar Burst en esta ejecución. La opción de proyecto se conserva.
+En la validación original, la máquina con RTX 3060 carecía de un runtime OpenXR activo. El sistema bloqueó una DLL de Burst JIT generada en este directorio, por lo que se usó el parámetro de batch para deshabilitar Burst en esa ejecución.
+
+## Validación en visor
+
+El rig heredaba un `Camera Offset` de 3,5 m y aceptaba el modo de seguimiento del runtime. El modo escritorio decidía en `Start` y desactivaba el seguimiento y la locomoción durante toda la escena si la pantalla XR aún estaba detenida. El menú y el teclado usan botones físicos con collider y `XRSimpleInteractable`. El gatillo estaba asociado a la activación, mientras que los botones solo escuchaban la selección por agarre o toque. Las dos modalidades de giro estaban habilitadas en el prefab. Las tres escenas tienen un solo `EventSystem` con `XRUIInputModule`.
+
+`HotelXrSession` espera el primer seguimiento válido y centra horizontalmente la cabeza y la cápsula sobre el punto de aparición. Solicita `Floor` si el runtime lo admite. En modo `Device` aplica el campo **Device Eye Height** del rig, configurado a 1,62 m. El mismo origen mueve la cabeza y ambos mandos. El seguimiento `Floor` conserva la altura real del jugador sentado o de pie. El movimiento usa el joystick izquierdo a 1,75 m/s y la cápsula de XRI. El menú alterna entre 30° por paso y 55°/s en giro suave.
+
+Para comprobar el simulador, añade temporalmente el prefab `XR Device Simulator.prefab` de `Assets/Samples/XR Interaction Toolkit/3.5.1/XR Device Simulator/` a `GameScene` y entra en Play Mode. La consola debe registrar `mode=Simulator` y los mandos simulados deben mover los rayos. Una sesión OpenXR activa desactiva el simulador.
+
+`HotelSmoke.Run` pasó en Unity 6000.3.19f1. Verificó las referencias de las tres escenas, el prefab del simulador, las poses de ambos mandos, audio, dificultad, giro, selección de **PLAY / JUGAR** con el gatillo, colisión con las puertas cerradas y salida con el joystick. También pasó el recorrido completo de Nightmare, incluida la captura, la victoria y los reinicios. El registro local es `Logs/HotelXrSmoke.log`.
+
+La compilación Windows x64 terminó con cero avisos y arrancó con Direct3D 11. Los registros locales son `Logs/HotelXrBuild.log` y `Logs/HotelXrPlayer.log`. El runtime OpenXR cargó, con los subsistemas de pantalla y entrada detenidos y sin dispositivos físicos disponibles para la prueba.
+
+En un visor físico queda pendiente este recorrido.
+
+1. Calibra el suelo del visor y activa su runtime OpenXR. Para PC VR, conecta el visor y enciende ambos mandos antes de arrancar el ejecutable o entrar en Play Mode.
+2. De pie, comprueba que apareces dentro de la cabina mirando al panel. Agáchate, desplázate un paso y vuelve a tu posición. Repite sentado y registra si el suelo, el panel y el movimiento se perciben a la altura esperada.
+3. Apunta con cada mando y pulsa el gatillo sobre audio, dificultad y giro. Pulsa **PLAY / JUGAR** y prueba el joystick izquierdo contra las puertas cerradas. Cruza al abrirse y verifica el giro por pasos, el giro suave y el teletransporte.
+4. Abre una puerta lateral, agarra y rompe un objeto, lee los cuatro sellos e introduce el código. Comprueba la victoria y el reinicio. En otra partida, comprueba la captura y el retorno a la cabina.
+5. Guarda las líneas `[Hotel XR]` del Editor o de `Player.log`. Registra el modelo de visor y mandos, el runtime, `display`, `input`, el modo de seguimiento, `eyeHeight` y el estado de los tres dispositivos. Si aparece `Device`, comprueba que la altura corresponde al ajuste del rig. Anota el paso exacto si falla algo.

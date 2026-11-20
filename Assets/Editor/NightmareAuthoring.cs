@@ -251,9 +251,7 @@ internal sealed partial class NightmareAuthoring
         options.difficultyLabel = clone.GetComponentInChildren<TMP_Text>();
         options.difficultyLabel.text = "PESADILLA";
         options.difficultyLabel.color = HotelMedia.Hex("E4C49A");
-        var face = menu.transform.Find("Console face");
-        face.localPosition = new Vector3(0f, -0.065f, 0f);
-        face.localScale = new Vector3(1.43f, 1.0f, 1f);
+        HotelAuthoring.ConfigureTurnOption(options, UnityEngine.Object.FindFirstObjectByType<HotelXrSession>());
         var register = puzzle.numberSpawnPoints[0].parent.parent.GetComponentsInChildren<TMP_Text>(true)
             .Single(label => label.name == "Orden del código");
         tension.clueHint = register;

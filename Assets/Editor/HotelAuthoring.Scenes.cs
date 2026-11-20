@@ -18,7 +18,10 @@ using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Interactors.Casters;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Gravity;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning;
+using UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets;
 
 internal sealed partial class HotelAuthoring
 {
@@ -92,6 +95,7 @@ internal sealed partial class HotelAuthoring
 
         Corridor(structure);
         ElevatorSequence elevator = BuildElevator(structure, creature);
+        ConfigureTurnOption(elevator.menuCanvas.GetComponent<HotelOptions>(), rig.GetComponent<HotelXrSession>());
         Stage(profile.transform);
         RegisterAmbientApparition(apparition, priorApparition);
         ConfigureCreature(creature, priorVisual, rig, fade);
@@ -132,17 +136,7 @@ internal sealed partial class HotelAuthoring
                 item.gameObject.SetActive(false);
         }
 
-        if (rig.TryGetComponent(out HotelDesktopControls existing))
-            UnityEngine.Object.DestroyImmediate(existing);
-        var desktop = rig.gameObject.AddComponent<HotelDesktopControls>();
-        desktop.view = view;
-        desktop.body = rig.GetComponent<CharacterController>();
-        var providers = rig.GetComponentsInChildren<LocomotionProvider>(true).Cast<Behaviour>();
-        var trackedPose = view.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>();
-        desktop.xrComponents = providers
-            .Concat(rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Inputs.XRInputModalityManager>(true))
-            .Concat(trackedPose != null ? new Behaviour[] { trackedPose } : Array.Empty<Behaviour>())
-            .ToArray();
+        ConfigureXrRig(rig);
         teleporter = rig.GetComponentInChildren<TeleportationProvider>(true);
         foreach (var gravity in rig.GetComponentsInChildren<GravityProvider>(true))
         {
@@ -168,6 +162,87 @@ internal sealed partial class HotelAuthoring
         if (!UnityEngine.Object.FindFirstObjectByType<UnityEngine.XR.Interaction.Toolkit.XRInteractionManager>())
             Node("XR Interaction Manager").AddComponent<UnityEngine.XR.Interaction.Toolkit.XRInteractionManager>();
         return view.transform;
+    }
+
+    internal static HotelXrSession ConfigureXrRig(XROrigin rig)
+    {
+        rig.RequestedTrackingOriginMode = XROrigin.TrackingOriginMode.NotSpecified;
+        rig.CameraYOffset = 1.62f;
+        rig.CameraFloorOffsetObject.transform.localPosition = Vector3.zero;
+        var desktop = rig.GetComponent<HotelDesktopControls>() ?? rig.gameObject.AddComponent<HotelDesktopControls>();
+        desktop.view = rig.Camera;
+        desktop.body = rig.GetComponent<CharacterController>();
+        desktop.enabled = false;
+
+        var body = desktop.body;
+        body.height = 1.62f;
+        body.center = Vector3.up * 0.81f;
+        body.radius = 0.23f;
+        body.skinWidth = 0.025f;
+        body.stepOffset = 0.24f;
+        body.minMoveDistance = 0f;
+        var move = rig.GetComponentInChildren<ContinuousMoveProvider>(true);
+        move.moveSpeed = 1.75f;
+        var snap = rig.GetComponentInChildren<SnapTurnProvider>(true);
+        snap.turnAmount = 30f;
+        snap.enableTurnAround = false;
+        var smooth = rig.GetComponentInChildren<ContinuousTurnProvider>(true);
+        smooth.turnSpeed = 55f;
+        smooth.enableTurnAround = false;
+        smooth.enabled = false;
+        var transformer = rig.GetComponentInChildren<XRBodyTransformer>(true);
+        transformer.useCharacterControllerIfExists = true;
+
+        var controllers = rig.GetComponentsInChildren<ControllerInputActionManager>(true);
+        var right = controllers.Single(controller => controller.name == "Right Controller");
+        foreach (var controller in controllers)
+        {
+            var serialized = new SerializedObject(controller);
+            serialized.FindProperty("m_SmoothMotionEnabled").boolValue = controller != right;
+            serialized.FindProperty("m_SmoothTurnEnabled").boolValue = false;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var ray = controller.GetComponentInChildren<NearFarInteractor>(true);
+            ray.allowHoveredActivate = true;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(ray);
+        }
+
+        foreach (var component in new Component[] { rig, rig.CameraFloorOffsetObject.transform, body, move, snap, smooth, transformer })
+            PrefabUtility.RecordPrefabInstancePropertyModifications(component);
+
+        var session = rig.GetComponent<HotelXrSession>() ?? rig.gameObject.AddComponent<HotelXrSession>();
+        var settings = new SerializedObject(session);
+        settings.FindProperty("locomotion").objectReferenceValue = transformer;
+        settings.FindProperty("rightController").objectReferenceValue = right;
+        settings.FindProperty("snapTurn").objectReferenceValue = snap;
+        settings.FindProperty("smoothTurn").objectReferenceValue = smooth;
+        settings.ApplyModifiedPropertiesWithoutUndo();
+        return session;
+    }
+
+    internal static void ConfigureTurnOption(HotelOptions options, HotelXrSession session)
+    {
+        options.xrSession = session;
+        Transform menu = options.transform;
+        var existing = menu.Find("Giro VR");
+        if (existing == null)
+        {
+            var template = options.comfortLabel.GetComponentInParent<HotelButton>().gameObject;
+            var clone = UnityEngine.Object.Instantiate(template, menu);
+            clone.name = "Giro VR";
+            var button = clone.GetComponent<HotelButton>();
+            button.onPress = new UnityEngine.Events.UnityEvent();
+            UnityEventTools.AddPersistentListener(button.onPress, options.ToggleTurn);
+            options.turnLabel = clone.GetComponentInChildren<TMP_Text>();
+            options.turnLabel.text = "GIRO  POR PASOS";
+            existing = clone.transform;
+        }
+
+        existing.localPosition = new Vector3(options.difficultyLabel == null ? 0f : 0.327f, -0.444f, -0.054f);
+        if (options.difficultyLabel != null)
+            options.difficultyLabel.GetComponentInParent<HotelButton>().transform.localPosition = new Vector3(-0.327f, -0.444f, -0.054f);
+        var face = menu.Find("Console face");
+        face.localPosition = new Vector3(0f, -0.065f, 0f);
+        face.localScale = new Vector3(1.43f, 1f, 1f);
     }
 
     private void SetAtmosphere()
