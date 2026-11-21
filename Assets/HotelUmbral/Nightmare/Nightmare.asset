@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 104c8e8f09fc3a24bb0f250cc653703c, type: 3}
+  m_Name: Nightmare
+  m_EditorClassIdentifier: Assembly-CSharp::NightmareProfile
+  difficulty: 1
+  displayName: PESADILLA
+  pursuitSpeed: 1.38
+  pressureSpeed: 0.51
+  burstSpeed: 0.43
+  burstSeconds: 1.85
+  burstRest: 7.1
+  grace: 1.65
+  recovery: 0.43
+  reaction: 0.18
+  gazeProtection: 2.55
+  eventGap: 7.7
+  lightScale: 1
+  audioScale: 0.83
+  roomPressureAfter: 5.8
+  progressPressure: 1
+  clueDwell: 0.43
+  clueHint: "REGISTRO DE EVACUACI\xD3N\nLee los sellos del 01 al 04.\nDos est\xE1n
+    en las habitaciones."

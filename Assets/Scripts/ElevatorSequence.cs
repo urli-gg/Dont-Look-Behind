@@ -20,6 +20,7 @@ public class ElevatorSequence : MonoBehaviour
     [Min(0.1f)] public float doorDistance = 0.86f;
 
     public bool DoorsOpen { get; private set; }
+    public event System.Action Started;
 
     private bool started;
 
@@ -36,6 +37,7 @@ public class ElevatorSequence : MonoBehaviour
             return;
 
         started = true;
+        Started?.Invoke();
         StartCoroutine(Travel());
     }
 

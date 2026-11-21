@@ -9,6 +9,19 @@ public class GameCodeManager : MonoBehaviour
 
     public string GeneratedCode { get; private set; }
     public TMP_Text[] InstalledClues { get; private set; }
+    public Transform playerHead;
+    public LayerMask clueOcclusion;
+    public HorrorTensionDirector tension;
+    [Min(0.5f)] public float readRange = 2.65f;
+    public int CluesFound { get; private set; }
+    public event System.Action<int> ClueDiscovered;
+
+    private bool[] found;
+    private int reading = -1;
+    private float readSince;
+    private float nextSample;
+
+    public bool HasFoundClue(int index) => found != null && index >= 0 && index < found.Length && found[index];
 
     private void Start()
     {
@@ -22,6 +35,7 @@ public class GameCodeManager : MonoBehaviour
 
         var digits = new char[codeLength];
         InstalledClues = new TMP_Text[codeLength];
+        found = new bool[codeLength];
         for (int index = 0; index < codeLength; index++)
         {
             digits[index] = (char)('0' + Random.Range(1, 10));
@@ -34,5 +48,42 @@ public class GameCodeManager : MonoBehaviour
         }
 
         GeneratedCode = new string(digits);
+    }
+
+    private void Update()
+    {
+        if (playerHead == null || found == null || CluesFound == found.Length || Time.time < nextSample)
+            return;
+        nextSample = Time.time + 0.075f;
+        float bestDot = 0.88f;
+        int candidate = -1;
+        for (int i = 0; i < found.Length; i++)
+        {
+            if (found[i])
+                continue;
+            Vector3 target = numberSpawnPoints[i].position;
+            Vector3 direction = target - playerHead.position;
+            if (direction.sqrMagnitude > readRange * readRange)
+                continue;
+            float alignment = Vector3.Dot(playerHead.forward, direction.normalized);
+            if (alignment <= bestDot || Physics.Linecast(playerHead.position, target, clueOcclusion, QueryTriggerInteraction.Ignore))
+                continue;
+            bestDot = alignment;
+            candidate = i;
+        }
+
+        if (candidate != reading)
+        {
+            reading = candidate;
+            readSince = Time.time;
+        }
+        float dwell = tension != null && tension.Profile != null ? tension.Profile.clueDwell : 0.44f;
+        if (candidate < 0 || Time.time - readSince < dwell)
+            return;
+
+        found[candidate] = true;
+        CluesFound++;
+        InstalledClues[candidate].color = new Color(0.72f, 0.86f, 0.80f);
+        ClueDiscovered?.Invoke(candidate);
     }
 }

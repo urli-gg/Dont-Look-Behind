@@ -9,6 +9,7 @@ public class WinTrigger : MonoBehaviour
     public Creature creature;
     public HotelFade fade;
     public AudioSource release;
+    public HorrorTensionDirector tension;
 
     public TeleportationArea exitTeleport;
 
@@ -40,6 +41,8 @@ public class WinTrigger : MonoBehaviour
         if (won || (creature != null && !creature.TryDisarm()))
             return;
         won = true;
+        if (tension != null)
+            tension.CompleteRun(true);
         StartCoroutine(PlayWin());
     }
 

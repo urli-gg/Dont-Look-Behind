@@ -17,10 +17,16 @@ public class HotelSwingDoor : MonoBehaviour
     public void Toggle()
     {
         if (!moving)
-            StartCoroutine(Swing());
+            StartCoroutine(Swing(speed));
     }
 
-    private IEnumerator Swing()
+    public void CloseFromFright(float swingSpeed)
+    {
+        if (open && !moving && !Occupied())
+            StartCoroutine(Swing(swingSpeed));
+    }
+
+    private IEnumerator Swing(float swingSpeed)
     {
         moving = true;
         float angle = transform.localEulerAngles.y;
@@ -34,14 +40,14 @@ public class HotelSwingDoor : MonoBehaviour
                 end = openAngle;
                 break;
             }
-            angle = Mathf.MoveTowardsAngle(angle, end, speed * Time.deltaTime);
+            angle = Mathf.MoveTowardsAngle(angle, end, swingSpeed * Time.deltaTime);
             transform.localRotation = Quaternion.Euler(0f, angle, 0f);
             yield return null;
         }
 
         while (!Mathf.Approximately(angle, end))
         {
-            angle = Mathf.MoveTowardsAngle(angle, end, speed * Time.deltaTime);
+            angle = Mathf.MoveTowardsAngle(angle, end, swingSpeed * Time.deltaTime);
             transform.localRotation = Quaternion.Euler(0f, angle, 0f);
             yield return null;
         }

@@ -11,6 +11,9 @@ public class Keypad : MonoBehaviour
     public AudioSource response;
     public AudioClip rejected;
     public AudioClip accepted;
+    public AudioClip digitClick;
+    public enum ActionKind { Digit, Cleared, Rejected, Accepted }
+    public event System.Action<ActionKind> Interacted;
 
     private static readonly Color Ready = new(0.59f, 0.93f, 0.78f);
     private static readonly Color Rejected = new(1f, 0.46f, 0.42f);
@@ -26,6 +29,8 @@ public class Keypad : MonoBehaviour
             number[0] < '0' || number[0] > '9')
             return;
         input += number;
+        Play(digitClick);
+        Interacted?.Invoke(ActionKind.Digit);
         Refresh();
     }
 
@@ -42,6 +47,7 @@ public class Keypad : MonoBehaviour
         if (locked)
             return;
         input = "";
+        Interacted?.Invoke(ActionKind.Cleared);
         Refresh();
     }
 
@@ -54,6 +60,7 @@ public class Keypad : MonoBehaviour
             Accepted = locked = true;
             SetDisplay("ABIERTO", Ready);
             Play(accepted);
+            Interacted?.Invoke(ActionKind.Accepted);
             door.OpenDoor();
         }
         else
@@ -67,6 +74,7 @@ public class Keypad : MonoBehaviour
         locked = true;
         SetDisplay("DENEGADO", Rejected);
         Play(rejected);
+        Interacted?.Invoke(ActionKind.Rejected);
         yield return new WaitForSeconds(1.1f);
         input = "";
         locked = false;

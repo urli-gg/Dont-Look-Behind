@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 public class Creature : MonoBehaviour
 {
-    public enum BehaviourState { Waiting, Stalking, Pursuing, Retreating, Investigating, Approaching, Attacking, Recovering, Disarmed }
+    public enum BehaviourState { Waiting, Stalking, Pursuing, Rushing, Retreating, Investigating, Approaching, Attacking, Recovering, Disarmed }
 
     public Transform player;
     public Transform playerCamera;
@@ -15,6 +15,8 @@ public class Creature : MonoBehaviour
     public Animator animationBody;
     public AudioSource footstepAudio;
     public AudioSource breathAudio;
+    public AudioSource rushAudio;
+    public HorrorTensionDirector tension;
 
     [Min(0.1f)] public float speed = 1.05f;
     [Min(0.1f)] public float retreatSpeed = 2.3f;
@@ -26,6 +28,8 @@ public class Creature : MonoBehaviour
 
     public BehaviourState State { get; private set; }
     public int TurnsRemaining { get; private set; }
+    public bool HasLineOfSightToPlayer { get; private set; }
+    public event System.Action<int> LookSpent;
     public bool Repelling => State == BehaviourState.Retreating;
 
     private NavMeshPath retreatPath;
@@ -41,6 +45,10 @@ public class Creature : MonoBehaviour
     private float nextStep;
     private Vector3 investigation;
     private Quaternion visualRest;
+    private float nextRush;
+    private float rushUntil;
+    private float attackSince = -1f;
+    private NightmareProfile Profile => tension != null ? tension.Profile : null;
 
     private void Awake() => retreatPath = new NavMeshPath();
 
@@ -48,7 +56,11 @@ public class Creature : MonoBehaviour
     {
         TurnsRemaining = maxTurns;
         State = BehaviourState.Waiting;
-        graceUntil = Time.time + initialGrace;
+        graceUntil = Time.time + (Profile != null ? Profile.grace : initialGrace);
+        nextRush = graceUntil + 2.1f;
+        rushUntil = 0f;
+        attackSince = -1f;
+        HasLineOfSightToPlayer = false;
         if (visual != null)
             visualRest = visual.localRotation;
         HotelNoise.Heard += OnNoise;
@@ -68,37 +80,84 @@ public class Creature : MonoBehaviour
         Vector3 toPlayer = groundTarget - transform.position;
         Vector3 eyes = transform.position + Vector3.up * 1.39f;
         bool visible = !Physics.Linecast(playerCamera.position, eyes, architecture, QueryTriggerInteraction.Ignore);
+        HasLineOfSightToPlayer = visible;
         bool looking = visible && Vector3.Dot(playerCamera.forward, (eyes - target).normalized) >= (gazeLatched ? lookThreshold - 0.07f : lookThreshold);
         UpdateGaze(looking);
+
+        float distance = toPlayer.magnitude;
+        float pressure = tension != null ? tension.Intensity : 0f;
+        float pursuitSpeed = Profile != null ? Profile.pursuitSpeed + pressure * Profile.pressureSpeed : speed;
+        if (tension != null && tension.ExitClimax)
+            pursuitSpeed += 0.12f;
+        bool contact = visible && distance <= gameOverDistance &&
+            !Physics.Linecast(playerCamera.position, transform.position + Vector3.up * 0.92f, architecture, QueryTriggerInteraction.Ignore);
+        if (!contact || (looking && repelUntil > Time.time))
+            attackSince = -1f;
+        else if (attackSince < 0f)
+            attackSince = Time.time;
 
         if (looking && repelUntil > Time.time)
         {
             Drive(BehaviourState.Retreating, RetreatTarget(-toPlayer.normalized), retreatSpeed);
-            recoverUntil = Time.time + 0.7f;
+            recoverUntil = Time.time + (Profile != null ? Profile.recovery : 0.7f);
+            rushUntil = 0f;
         }
         else if (Time.time < recoverUntil)
         {
-            Drive(BehaviourState.Recovering, transform.position, speed);
+            Drive(BehaviourState.Recovering, transform.position, pursuitSpeed);
         }
-        else if (visible && toPlayer.sqrMagnitude <= gameOverDistance * gameOverDistance &&
-                 !Physics.Linecast(playerCamera.position, transform.position + Vector3.up * 0.92f, architecture))
+        else if (attackSince >= 0f && Time.time - attackSince > 0.18f)
         {
             Attack();
         }
-        else if (Time.time < investigateUntil && toPlayer.sqrMagnitude > 4f)
+        else if (visible && Rush(distance, pressure))
         {
-            Drive(BehaviourState.Investigating, investigation, speed * 0.83f);
+            Drive(BehaviourState.Rushing, PredictedTarget(groundTarget), pursuitSpeed + Profile.burstSpeed);
         }
-        else if (toPlayer.sqrMagnitude < 5.76f && visible)
+        else if (Time.time < investigateUntil && distance > 2.35f && (!visible || pressure < 0.57f))
         {
-            Drive(BehaviourState.Approaching, groundTarget, speed * 0.92f);
+            Drive(BehaviourState.Investigating, investigation, pursuitSpeed * 0.88f);
+        }
+        else if (distance < 2.45f && visible)
+        {
+            Drive(BehaviourState.Approaching, groundTarget, pursuitSpeed * 0.94f);
         }
         else
         {
-            float variation = 1f + 0.10f * Mathf.Sin(Time.time * 0.68f);
-            Drive(visible ? BehaviourState.Pursuing : BehaviourState.Stalking, groundTarget, speed * variation);
+            float variation = 1f + 0.055f * Mathf.Sin(Time.time * 0.85f);
+            Drive(visible ? BehaviourState.Pursuing : BehaviourState.Stalking,
+                visible ? PredictedTarget(groundTarget) : groundTarget, pursuitSpeed * variation * (visible ? 1f : 0.91f));
         }
         Animate(toPlayer);
+    }
+
+    private bool Rush(float distance, float pressure)
+    {
+        if (Profile == null)
+            return false;
+        if (Time.time < rushUntil)
+            return true;
+        if (Time.time < nextRush || pressure < 0.39f || distance < 2.3f || distance > 8.5f)
+            return false;
+
+        rushUntil = Time.time + Profile.burstSeconds;
+        nextRush = rushUntil + Profile.burstRest * Random.Range(0.86f, 1.15f);
+        if (rushAudio != null)
+            rushAudio.PlayOneShot(rushAudio.clip, HotelOptions.ReducedScares ? 0.38f : 0.64f);
+        if (tension != null)
+            tension.Telemetry.Record("rush", "", pressure);
+        return true;
+    }
+
+    private Vector3 PredictedTarget(Vector3 target)
+    {
+        if (tension == null || agent == null || !agent.isOnNavMesh)
+            return target;
+        Vector3 ahead = target + Vector3.ClampMagnitude(tension.PlayerVelocity * 0.65f, 1.25f);
+        if (Physics.Linecast(target + Vector3.up * 0.65f, ahead + Vector3.up * 0.65f, architecture, QueryTriggerInteraction.Ignore) ||
+            !NavMesh.SamplePosition(ahead, out var hit, 0.45f, NavMesh.AllAreas))
+            return target;
+        return hit.position;
     }
 
     private void UpdateGaze(bool looking)
@@ -121,11 +180,14 @@ public class Creature : MonoBehaviour
             return;
         if (lookSince < 0f)
             lookSince = Time.time;
-        if (Time.time - lookSince < 0.13f)
+        if (Time.time - lookSince < (Profile != null ? Profile.reaction : 0.13f))
             return;
         gazeLatched = true;
         TurnsRemaining--;
-        repelUntil = Time.time + maxLookTime;
+        repelUntil = Time.time + (Profile != null ? Profile.gazeProtection : maxLookTime);
+        if (Profile != null)
+            nextRush = Mathf.Max(nextRush, Time.time + Profile.burstRest * 0.68f);
+        LookSpent?.Invoke(TurnsRemaining);
     }
 
     private Vector3 RetreatTarget(Vector3 away)
@@ -168,7 +230,7 @@ public class Creature : MonoBehaviour
         agent.speed = moveSpeed;
         if (!changed && Time.time < nextNavigation)
             return;
-        nextNavigation = Time.time + 0.25f;
+        nextNavigation = Time.time + (State == BehaviourState.Rushing ? 0.17f : 0.25f);
         agent.isStopped = (destination - transform.position).sqrMagnitude < 0.08f;
         if (!agent.isStopped && NavMesh.SamplePosition(destination, out var hit, 1.75f, NavMesh.AllAreas))
             agent.SetDestination(hit.position);
@@ -176,6 +238,7 @@ public class Creature : MonoBehaviour
 
     private void Animate(Vector3 toPlayer)
     {
+        bool rushing = State == BehaviourState.Rushing;
         bool moving = agent != null && agent.isOnNavMesh && agent.velocity.sqrMagnitude > 0.07f;
         Vector3 facing = moving && !Repelling ? agent.velocity : toPlayer;
         facing.y = 0f;
@@ -184,12 +247,13 @@ public class Creature : MonoBehaviour
         if (visual != null)
             visual.localRotation = visualRest * Quaternion.Euler(0f, 0f, moving ? Mathf.Sin(Time.time * 8f) * 3.2f : Mathf.Sin(Time.time * 2f) * 1.4f);
         if (animationBody != null)
-            animationBody.speed = moving ? 0.85f : 0.43f;
+            animationBody.speed = moving ? rushing ? 1.24f : 0.92f : 0.43f;
 
         if (moving && !Repelling && footstepAudio != null && Time.time >= nextStep)
         {
-            nextStep = Time.time + Random.Range(0.44f, 0.62f);
-            footstepAudio.pitch = Random.Range(0.87f, 1.1f);
+            nextStep = Time.time + (rushing ? Random.Range(0.25f, 0.39f) : Random.Range(0.39f, 0.56f));
+            footstepAudio.pitch = Random.Range(0.83f, 1.1f);
+            footstepAudio.volume = rushing ? 0.91f : 0.72f;
             footstepAudio.Play();
         }
 
@@ -204,8 +268,8 @@ public class Creature : MonoBehaviour
         if (Time.time < nextNoise || State is BehaviourState.Waiting or BehaviourState.Attacking or BehaviourState.Disarmed ||
             (transform.position - location).sqrMagnitude > radius * radius)
             return;
-        nextNoise = Time.time + 5.5f;
-        investigateUntil = Time.time + 2.45f;
+        nextNoise = Time.time + (radius > 5f ? 3.1f : 1.2f);
+        investigateUntil = Time.time + (radius > 5f ? 2.10f : 0.75f);
         investigation = location;
     }
 
@@ -226,6 +290,8 @@ public class Creature : MonoBehaviour
     {
         State = BehaviourState.Attacking;
         StopMovement();
+        if (tension != null)
+            tension.CompleteRun(false);
         if (capture != null)
             capture.Play(visual, animationBody, playerCamera);
         else
